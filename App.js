@@ -39,55 +39,51 @@ function GetDataAndSaveToSQL () {
   .then((values) => {
       API.GetGamesAndPlayers()
       .then((data) => {
+        let date_ob = new Date();
 
-        data.games.forEach((element, index) => {
-          console.log("Game #" + (index + 1))
-          console.log(element.teams.home.name + " vs " + element.teams.away.name)
-          let starttime = new Date(element.startTime).toLocaleDateString(
-            'en',
-            {
-              hour: "numeric", 
-              minute: "numeric",
-              hour12: false,
-              timeZone: 'utc'
-            });
-          console.log(starttime)
-        })
+        let date = date_ob.getFullYear() + "-" + ("0" + (date_ob.getMonth() + 1)).slice(-2) + "-" + ("0" + date_ob.getDate()).slice(-2);
+        let time = (date_ob.getHours() + ":" + date_ob.getMinutes())
+        let next_job_flag = false;
+
+        if(data.games.length > 0) {
+          data.games.forEach((element, index) => {
+            console.log("Game #" + (index + 1))
+            console.log(element.teams.home.name + " vs " + element.teams.away.name)
+            let starttime_ob = new Date(element.startTime)
+
+            if (starttime_ob.getTime() > date_ob.getTime() && !next_job_flag) {
+              const schedule_string = `${starttime_ob.getMinutes()} ${starttime_ob.getHours()} ${starttime_ob.getDate()} ${starttime_ob.getMonth() + 1} *`;
+              const job = schedule.scheduleJob(schedule_string, GetDataAndSaveToSQL);
+              next_job_flag = true;
+              console.log("Next Job Scheduled for: " + starttime_ob.toLocaleString());
+            }
+
+          });
+        }
+        if (!next_job_flag) {
+          const schedule_string = `0 0 ${date_ob.getDate() + 1} ${date_ob.getMonth() + 1} *`
+          const job = schedule.scheduleJob(schedule_string, GetDataAndSaveToSQL);
+          console.log("Next Check Scheduled for midnight!");
+        }
         console.log("")
       
         if(data.hasOwnProperty("sets")) {
           if(data.sets[0].players.length === 0) console.log("No more picks")
           else {
             var options = [];
-            let date_ob = new Date();
-            // var date_ob_utc = new Date(Date.UTC(date_ob.getUTCFullYear(), date_ob.getUTCMonth(),
-            //                 date_ob.getUTCDate(), date_ob.getUTCHours(),
-            //                 date_ob.getUTCMinutes(), date_ob.getUTCSeconds()));
-
-            let date = date_ob.getFullYear() + "-" + ("0" + (date_ob.getMonth() + 1)).slice(-2) + "-" + ("0" + date_ob.getDate()).slice(-2);
-            let time = (date_ob.getUTCHours() + ":" + date_ob.getUTCMinutes())
-            console.log(date)
-            console.log(time)
             data.sets.forEach((element, setnum) => {
-            console.log("Set #" + (setnum + 1))
-            if(element.players.length > 0) element.players.forEach((element, optionnum) => {
-              console.log("Option #" + (optionnum + 1));
-              // console.log(element)
-              console.log(element.firstName + " " + element.lastName)
-
-              // var sqlInsert = `INSERT INTO Options (setnumber, FirstName, LastName, choiceDate, choiceTime) 
-              //                 VALUES (${setnum}, "${element.firstName}", "${element.lastName}", "${date}", "${time}")`
-              // con.query(sqlInsert, (err, result) => {
-              //   if (err) throw err;
-              //   console.log("1 record inserted");
-              // });
-              options.push({
-                setnumber : setnum,
-                FirstName : element.firstName,
-                LastName : element.lastName,
-                choiceDate : date,
-                choiceTime : time
-              });
+              console.log("Set #" + (setnum + 1))
+              if(element.players.length > 0) element.players.forEach((element, optionnum) => {
+                console.log("Option #" + (optionnum + 1));
+                // console.log(element)
+                console.log(element.firstName + " " + element.lastName)
+                options.push({
+                  setnumber : setnum,
+                  FirstName : element.firstName,
+                  LastName : element.lastName,
+                  choiceDate : date,
+                  choiceTime : time
+                });
               });
             });
             var sqlSelect = `SELECT setnumber, FirstName, LastName FROM Options WHERE Options.choiceDate = "${date}"`
@@ -106,14 +102,16 @@ function GetDataAndSaveToSQL () {
                 });
               }
               if (!doesSetMatch){
+                let record_count = 0
                 options.forEach((element) => {
                   var sqlInsert = `INSERT INTO Options (setnumber, FirstName, LastName, choiceDate, choiceTime) 
                                   VALUES (${element.setnumber}, "${element.FirstName}", "${element.LastName}", "${element.choiceDate}", "${element.choiceTime}")`
                   con.query(sqlInsert, (err, result) => {
                     if (err) throw err;
-                    console.log("1 record inserted");
+                    else record_count++;
                   });
                 });
+                if(record_count) console.log(`${record_count} record${(record_count === 1) ? "" : "s"} inserted`);
               }
             });
           }
@@ -126,14 +124,6 @@ function GetDataAndSaveToSQL () {
       });
   });
 }
-
-const everyHalfHour = new schedule.RecurrenceRule();
-everyHalfHour.minute = [0, 30];
-everyHalfHour.second = 0;
-
-const job = schedule.scheduleJob(everyHalfHour, () => {
-  GetDataAndSaveToSQL();
-});
 
 GetDataAndSaveToSQL();
 
