@@ -1,0 +1,18 @@
+{
+  "name": "tim-hortons-hockey-picks",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "cors": "^2.8.5",
+    "jstz": "^2.1.1",
+    "moment": "^2.29.4",
+    "mysql": "^2.18.1",
+    "node-schedule": "^2.1.1",
+    "nodemon": "^2.0.21"
+  },
+  "scripts": {
+    "start": "node App.js",
+    "devstart": "nodemon App.js",
+    "debug": "DEBUG=socket* node App.js"
+  }
+}
